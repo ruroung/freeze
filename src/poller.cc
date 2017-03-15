@@ -44,4 +44,12 @@ int Poller::poll(struct epoll_event *events, int max) {
   return numevents;
 }
 
+struct epoll_event *Poller::getPollEvents() {
+  return epoll_events_;
+}
+
+int Poller::getMaxEvent() {
+  return maxevent;
+}
+
 }

@@ -10,6 +10,8 @@
 #include <unistd.h> // fcntl()
 #include <fcntl.h> // fcntl()
 
+#include "poller.h"
+
 namespace freeze {
 
 int setNonBlock(int fd, bool value);
@@ -31,6 +33,8 @@ class TcpServer{
   int accept();
  private:
   int fd_;
+  Poller poller_;
+  
 };
 
 }

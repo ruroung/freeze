@@ -52,6 +52,8 @@ int TcpServer::bind(const std::string& host, int port) {
   if (host.size() > 0) {}
 
   fd_ = fd;
+  setNonBlock(fd, true);
+
   struct sockaddr_in addr;
   addr.sin_addr.s_addr = INADDR_ANY;
   addr.sin_family = AF_INET;
@@ -66,6 +68,38 @@ int TcpServer::bind(const std::string& host, int port) {
 
   r = listen(fd, 20);
 
+  int maxevent = poller_.getMaxEvent();
+  struct epoll_event *events = poller_.getPollEvents();
+  poller_.addEvent(fd);
+  struct epoll_event ee;
+  int i, n;
+  int buff_size = 1024;
+  char buff[buff_size];
+  int readn;
+
+  for (;;) {
+    if ((n = poller_.poll(events, maxevent)) > 0 ) {
+      i = 0;
+      printf("poller poll n %d\n", n);
+      for (; i < n; i++) {
+        ee = events[i];
+        if (ee.data.fd == fd_) {
+        //socket listen fd has a new client
+          accept(); 
+        } else {
+          if (ee.events && EPOLLIN) {
+            //receive client fd message
+            //printf("receive client message\n");
+            readn = read(ee.data.fd, buff, buff_size);
+            printf("readn %d", readn);
+            buff[readn] = '\0';
+            printf("msg:%s", buff);
+          }
+        }
+      }
+    }
+  }
+
   return 0;
 }
 
@@ -75,9 +109,16 @@ int TcpServer::accept() {
   socklen_t len = sizeof(client_addr);
   int cfd;
   
+  if (fd_ > 0 && (cfd = ::accept(fd_, (struct sockaddr*)&client_addr, &len))) {
+    setNonBlock(cfd, true);
+    poller_.addEvent(cfd);
+    printf("new client fd %d\n", cfd); 
+  }
+  /*
   while (fd_ > 0 && (cfd = ::accept(fd_, (struct sockaddr*)&client_addr, &len))) {
     printf("new client fd %d\n", cfd); 
   }
+  */
 
   return 1;
 }
