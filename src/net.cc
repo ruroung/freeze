@@ -36,6 +36,12 @@ int TcpConn::connect(const std::string& host, int port) {
     perror("TcpConn connect error.");
     exit(EXIT_FAILURE);
   }
+  
+  char buff[1024];
+  while (std::cin.getline(buff, 1024)) {
+    printf("%s\n", buff);
+    write(fd, buff, strlen(buff));
+  } 
   return 0;
 }
 
@@ -78,22 +84,37 @@ int TcpServer::bind(const std::string& host, int port) {
   int readn;
 
   for (;;) {
-    if ((n = poller_.poll(events, maxevent)) > 0 ) {
-      i = 0;
-      printf("poller poll n %d\n", n);
-      for (; i < n; i++) {
+    if ((n = poller_.poll(events, maxevent)) > 0) {
+      for (i = 0; i < n; i++) {
         ee = events[i];
         if (ee.data.fd == fd_) {
         //socket listen fd has a new client
           accept(); 
         } else {
-          if (ee.events && EPOLLIN) {
+          if (ee.events & EPOLLIN) {
             //receive client fd message
             //printf("receive client message\n");
-            readn = read(ee.data.fd, buff, buff_size);
-            printf("readn %d", readn);
-            buff[readn] = '\0';
-            printf("msg:%s", buff);
+            int total_read_num = 0;
+            int read_round = 0;
+            while (read_round == 0 || (read_round > 0 && readn != 0 && readn >= buff_size)) {
+              read_round++;
+              readn = read(ee.data.fd, buff, buff_size);
+              total_read_num += readn;
+              if (readn < 0) {
+                perror("read error.");
+                exit(EXIT_FAILURE);
+              }
+              if (!total_read_num) {
+                //socket disconnect
+                printf("delete epoll event fd\n");
+                poller_.delEvent(ee.data.fd);
+                close(ee.data.fd);
+                printf("fd %d disconnect\n", ee.data.fd);
+              } else if (readn > 0) {
+                buff[readn] = '\0';
+                printf("msg:%s\n", buff);
+              }
+            }
           }
         }
       }

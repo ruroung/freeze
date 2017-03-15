@@ -9,6 +9,8 @@
 
 #include <unistd.h> // fcntl()
 #include <fcntl.h> // fcntl()
+#include <iostream>
+#include <string.h>
 
 #include "poller.h"
 
